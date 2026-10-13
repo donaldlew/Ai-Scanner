@@ -1,13 +1,23 @@
-10/7/2026
-# Assignment 1: Gemini Security Scanner
+AI Security Vulnerability Scanner (Local PoC)
+A lightweight, local command-line script that utilizes Google’s Gemini API to scan code snippets for common software vulnerabilities.
 
-## Setup Instructions
-1. Install dependencies: `pip install google-genai python-dotenv`
-2. Add your API key to a local `.env` file as `GEMINI_API_KEY`.
-3. Run the script: `python scanner.py`
+Purpose
+This tool acts as a proof-of-concept automated code review assistant. It programmatically runs targeted security analysis against known vulnerability patterns—such as SQL Injection (SQLi), Cross-Site Scripting (XSS), and Hardcoded Secrets—providing rapid developer feedback directly in the terminal.
 
-## Results & Reflection
-* **Test 1 (SQLi):** Gemini correctly flagged the string formatting vulnerability.
-* **Test 2 (XSS):** Gemini accurately spotted that unescaped user input in HTML allows script injection.
-* **Test 3 (Hardcoded Credentials):** Gemini correctly warned against storing plain-text passwords in code.
-* **Reflection:** The AI is highly accurate at catching classic vulnerabilities, but it works best as a helper rather than a definitive security authority.
+Model Used
+Model Identifier: gemini-3.5-flash
+
+Prerequisites
+1. Python 3.10+ installed on your machine
+2. A Google Gemini API key.
+
+How to Run the Scanner:
+1. Installation & Setup
+Clone or save the script locally as scanner.py.
+2. Install the official Google GenAI SDK and python-dotenv: 
+pip install google-genai python-dotenv
+3. Configure your API Key:
+Create a file named .env in the same directory as your script and add your Gemini API key:
+GEMINI_API_KEY=your_actual_api_key_here
+4. Execute the script from your terminal: 
+python scanner.py
