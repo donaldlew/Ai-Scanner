@@ -1,12 +1,24 @@
-# Assignment 1: Gemini Security Scanner
+AI Security Vulnerability Scanner
+An automated Application Security (AppSec) tool that analyzes source code for security vulnerabilities, maps findings to standard CWE classifications, and outputs structured, machine-readable data with remediation fixes.
 
-## Setup Instructions
-1. Install dependencies: `pip install google-genai python-dotenv`
-2. Add your API key to a local `.env` file as `GEMINI_API_KEY`.
-3. Run the script: `python scanner.py`
+Purpose
+This tool acts as a proof-of-concept automated security scanning engine. Designed to shift security left, it evaluates source code for OWASP Top 10 risks (such as SQL Injection, Cross-Site Scripting, and Hardcoded Secrets) and provides precise, actionable remediation guidance.
 
-## Results & Reflection
-* **Test 1 (SQLi):** Gemini correctly flagged the string formatting vulnerability.
-* **Test 2 (XSS):** Gemini accurately spotted that unescaped user input in HTML allows script injection.
-* **Test 3 (Hardcoded Credentials):** Gemini correctly warned against storing plain-text passwords in code.
-* **Reflection:** The AI is highly accurate at catching classic vulnerabilities, but it works best as a helper rather than a definitive security authority.
+By leveraging structured JSON schemas, the output is designed to be easily integrated into automated pipelines (like CI/CD gates) to block vulnerable code before it reaches production.
+
+Model Used
+Model Identifier: gemini-3.5-flash
+
+Prerequisites
+1. Python 3.10+ installed on your machine
+2. An active OpenRouter API key.
+
+How to Run the Scanner:
+1. Installation & Setup
+Clone or save the project files locally.
+2. Install the required packages via command line:
+pip install openai python-dotenv pydantic
+3. Configure your API Key:
+Create a file named .env in the same directory as your script and add your OpenRouter API key:
+4. Execute the script from your terminal: 
+python scanner.py
