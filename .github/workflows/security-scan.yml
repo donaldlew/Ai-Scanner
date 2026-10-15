@@ -31,4 +31,4 @@ jobs:
       - name: Run AI Vulnerability Scanner
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: python scanner.py --file test_vulnerable.py
+        run: python scanner.py --file tests/test_vulnerable.py
