@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <div id="greeting"></div>
+
+    <script>
+        // Reads the 'name' parameter straight from the URL string
+        const params = new URLSearchParams(window.location.search);
+        const name = params.get('name');
+
+        // Unsafe sink: innerHTML evaluates string data as live HTML/JS
+        document.getElementById('greeting').innerHTML = "Hello, " + name;
+    </script>
+</body>
+</html>
