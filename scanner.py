@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import json
 import re
@@ -46,6 +47,9 @@ IGNORED_EXTENSIONS = {
     ".pdf", ".docx", ".xlsx", ".ttf", ".woff", ".woff2"
 }
 
+# Specific administrative or environment files to ignore locally
+IGNORED_FILES = {".env", ".gitignore", "readme.md", "license", "package-lock.json"}
+
 def analyze_code_content(file_path, code_content):
     """Sends code content to OpenRouter with fallback logic and returns the structured finding."""
     for model_name in PRIMARY_MODELS:
@@ -77,10 +81,10 @@ def analyze_code_content(file_path, code_content):
     return None
 
 def scan_single_file(file_path):
-    """Scans an individual file."""
+    """Scans an individual file and returns whether a high/critical vuln was found."""
     if not os.path.exists(file_path):
         print(f"Error: File '{file_path}' not found.")
-        return
+        return False
 
     print(f"\n==========================================")
     print(f" Scanning File: {file_path}")
@@ -91,30 +95,41 @@ def scan_single_file(file_path):
             code_content = f.read()
     except Exception as e:
         print(f"Error reading file '{file_path}': {e}")
-        return
+        return False
 
     finding = analyze_code_content(file_path, code_content)
     if finding:
         print("\n--- Structured JSON Security Analysis ---")
         print(finding.model_dump_json(indent=2))
+        
+        severity_lower = finding.severity.lower()
+        if "high" in severity_lower or "critical" in severity_lower:
+            return True
+            
+    return False
 
 def scan_directory(dir_path):
-    """Recursively scans all text-based source files in a directory using a binary/media blacklist approach."""
+    """Recursively scans all text-based source files in a directory and enforces build failure on high/critical findings."""
     if not os.path.exists(dir_path):
         print(f"Error: Directory '{dir_path}' not found.")
-        return
+        sys.exit(1)
 
     print(f"\n==========================================")
     print(f" Starting Directory Scan: {dir_path}")
     print(f"==========================================\n")
 
     scanned_count = 0
+    high_critical_found = False
 
     for root, dirs, files in os.walk(dir_path):
         # Filter out ignored directories in-place
         dirs[:] = [d for d in dirs if d not in IGNORED_DIRS]
 
         for file in files:
+            # Skip administrative/metadata files
+            if file.lower() in IGNORED_FILES:
+                continue
+
             ext = os.path.splitext(file)[1].lower()
             
             # Skip known binary/media/archive extensions
@@ -139,8 +154,22 @@ def scan_directory(dir_path):
             if finding:
                 print("\n--- Security Analysis Output ---")
                 print(finding.model_dump_json(indent=2))
+                
+                # Check severity level to decide if build should fail
+                severity_lower = finding.severity.lower()
+                if "high" in severity_lower or "critical" in severity_lower:
+                    high_critical_found = True
+                    print(f"  🚨 SECURITY ALERT: {finding.severity.upper()} severity vulnerability detected in {full_path}!")
 
     print(f"\n✅ Completed directory scan. Total files scanned: {scanned_count}\n")
+
+    # Enforce build failure gate
+    if high_critical_found:
+        print("❌ SECURITY GATE FAILED: High or Critical vulnerabilities detected. Blocking build.")
+        sys.exit(1)
+    else:
+        print("🟢 SECURITY GATE PASSED: No High or Critical vulnerabilities found.")
+        sys.exit(0)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI-powered code security vulnerability scanner.")
@@ -150,8 +179,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.file:
-        scan_single_file(args.file)
+        failed = scan_single_file(args.file)
+        sys.exit(1 if failed else 0)
     elif args.dir:
         scan_directory(args.dir)
     else:
         print("Error: Please specify either --file <path> or --dir <path>")
+        sys.exit(1)
