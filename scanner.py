@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import json
 import re
@@ -46,6 +47,12 @@ IGNORED_EXTENSIONS = {
     ".pdf", ".docx", ".xlsx", ".ttf", ".woff", ".woff2"
 }
 
+# Specific administrative or environment files to ignore locally
+IGNORED_FILES = {".env", ".gitignore", "readme.md", "license", "package-lock.json"}
+
+# Maximum file size limit (500 KB)
+MAX_FILE_SIZE = 500 * 1024
+
 def analyze_code_content(file_path, code_content):
     """Sends code content to OpenRouter with fallback logic and returns the structured finding."""
     for model_name in PRIMARY_MODELS:
@@ -76,54 +83,38 @@ def analyze_code_content(file_path, code_content):
     print(f"  ❌ All models failed for file: {file_path}")
     return None
 
-def scan_single_file(file_path):
-    """Scans an individual file."""
-    if not os.path.exists(file_path):
-        print(f"Error: File '{file_path}' not found.")
-        return
-
-    print(f"\n==========================================")
-    print(f" Scanning File: {file_path}")
-    print(f"==========================================\n")
-
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            code_content = f.read()
-    except Exception as e:
-        print(f"Error reading file '{file_path}': {e}")
-        return
-
-    finding = analyze_code_content(file_path, code_content)
-    if finding:
-        print("\n--- Structured JSON Security Analysis ---")
-        print(finding.model_dump_json(indent=2))
-
 def scan_directory(dir_path):
-    """Recursively scans all text-based source files in a directory using a binary/media blacklist approach."""
+    """Recursively scans all text-based source files and generates a markdown report."""
     if not os.path.exists(dir_path):
         print(f"Error: Directory '{dir_path}' not found.")
-        return
+        sys.exit(1)
 
     print(f"\n==========================================")
     print(f" Starting Directory Scan: {dir_path}")
     print(f"==========================================\n")
 
     scanned_count = 0
+    high_critical_found = False
+    report_findings = []
 
     for root, dirs, files in os.walk(dir_path):
         # Filter out ignored directories in-place
         dirs[:] = [d for d in dirs if d not in IGNORED_DIRS]
 
         for file in files:
+            if file.lower() in IGNORED_FILES:
+                continue
+
             ext = os.path.splitext(file)[1].lower()
-            
-            # Skip known binary/media/archive extensions
             if ext in IGNORED_EXTENSIONS:
                 continue
 
             full_path = os.path.join(root, file)
+
+            if os.path.getsize(full_path) > MAX_FILE_SIZE:
+                print(f"\n  ⏩ Skipping (exceeds 500 KB limit): {full_path}")
+                continue
             
-            # Try reading the file as text; skip gracefully if it's binary or unreadable
             try:
                 with open(full_path, "r", encoding="utf-8") as f:
                     code_content = f.read()
@@ -139,8 +130,69 @@ def scan_directory(dir_path):
             if finding:
                 print("\n--- Security Analysis Output ---")
                 print(finding.model_dump_json(indent=2))
+                
+                # Track findings for report
+                report_findings.append({
+                    "file": full_path,
+                    "finding": finding
+                })
+
+                severity_lower = finding.severity.lower()
+                if "high" in severity_lower or "critical" in severity_lower:
+                    high_critical_found = True
+                    print(f"  🚨 SECURITY ALERT: {finding.severity.upper()} severity vulnerability detected in {full_path}!")
+
+    # Generate Markdown Report File
+    generate_markdown_report(report_findings, scanned_count, high_critical_found)
 
     print(f"\n✅ Completed directory scan. Total files scanned: {scanned_count}\n")
+
+    if high_critical_found:
+        print("❌ SECURITY GATE FAILED: High or Critical vulnerabilities detected. Blocking build.")
+        sys.exit(1)
+    else:
+        print("🟢 SECURITY GATE PASSED: No High or Critical vulnerabilities found.")
+        sys.exit(0)
+
+def generate_markdown_report(findings, scanned_count, failed):
+    """Writes a structured markdown summary report for PR comments, sanitizing inner backticks."""
+    status_emoji = "❌ **FAILED** (High/Critical Vulnerabilities Detected)" if failed else "🟢 **PASSED** (No High/Critical Vulnerabilities)"
+    
+    report_lines = [
+        "# 🛡️ AI Security Scan Report",
+        f"**Status:** {status_emoji}",
+        f"**Total Files Scanned:** {scanned_count}",
+        "",
+        "---",
+        "### 🔍 Detailed Findings"
+    ]
+
+    if not findings:
+        report_lines.append("\n*No security vulnerabilities or risks detected across scanned files!*")
+    else:
+        for item in findings:
+            f = item["finding"]
+            
+            # Sanitize any markdown code blocks returned inside the LLM model text
+            clean_fix = f.secure_code_fix.replace("```python", "").replace("```", "").strip()
+            
+            report_lines.extend([
+                f"",
+                f"#### 📁 File: `{item['file']}`",
+                f"- **Vulnerability:** {f.vulnerability_name} (`{f.cwe_id}`)",
+                f"- **Severity:** **{f.severity}**",
+                f"- **Explanation:** {f.explanation}",
+                f"- **Suggested Fix:**",
+                f"```python",
+                f"{clean_fix}",
+                f"```",
+                f""
+            ])
+
+    report_content = "\n".join(report_lines)
+    with open("security_report.md", "w", encoding="utf-8") as f:
+        f.write(report_content)
+    print("📝 Generated 'security_report.md' successfully.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI-powered code security vulnerability scanner.")
@@ -149,9 +201,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.file:
-        scan_single_file(args.file)
-    elif args.dir:
+    if args.dir:
         scan_directory(args.dir)
     else:
-        print("Error: Please specify either --file <path> or --dir <path>")
+        print("Error: Please specify --dir <path>")
+        sys.exit(1)
