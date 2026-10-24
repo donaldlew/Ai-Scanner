@@ -7,10 +7,10 @@ on:
     branches: [ "main", "master" ]
 
 jobs:
-    security-scan:
+  security-scan:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write  # Required permission to post comments on PRs
+      pull-requests: write
 
     steps:
       - name: Checkout Code
