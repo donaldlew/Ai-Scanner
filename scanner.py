@@ -155,7 +155,7 @@ def scan_directory(dir_path):
         sys.exit(0)
 
 def generate_markdown_report(findings, scanned_count, failed):
-    """Writes a structured markdown summary report for PR comments."""
+    """Writes a structured markdown summary report for PR comments, sanitizing inner backticks."""
     status_emoji = "❌ **FAILED** (High/Critical Vulnerabilities Detected)" if failed else "🟢 **PASSED** (No High/Critical Vulnerabilities)"
     
     report_lines = [
@@ -172,6 +172,10 @@ def generate_markdown_report(findings, scanned_count, failed):
     else:
         for item in findings:
             f = item["finding"]
+            
+            # Sanitize any markdown code blocks returned inside the LLM model text
+            clean_fix = f.secure_code_fix.replace("```python", "").replace("```", "").strip()
+            
             report_lines.extend([
                 f"",
                 f"#### 📁 File: `{item['file']}`",
@@ -180,7 +184,7 @@ def generate_markdown_report(findings, scanned_count, failed):
                 f"- **Explanation:** {f.explanation}",
                 f"- **Suggested Fix:**",
                 f"```python",
-                f"{f.secure_code_fix}",
+                f"{clean_fix}",
                 f"```",
                 f""
             ])
