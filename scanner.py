@@ -33,7 +33,7 @@ PRIMARY_MODELS = [
 ]
 
 # Directories to ignore during recursive scans
-IGNORED_DIRS = {".git", ".github", "venv", ".venv", "__pycache__", "node_modules", "build", "dist"}
+IGNORED_DIRS = {".git", ".github", "venv", ".venv", "__pycache__", "node_modules", "build", "dist", "security-reports"}
 
 # Binary, media, and archive extensions to skip (blacklist approach)
 IGNORED_EXTENSIONS = {
@@ -84,7 +84,7 @@ def analyze_code_content(file_path, code_content):
     return None
 
 def scan_directory(dir_path):
-    """Recursively scans all text-based source files and generates a markdown report."""
+    """Recursively scans all text-based source files and generates a markdown report in a dedicated folder."""
     if not os.path.exists(dir_path):
         print(f"Error: Directory '{dir_path}' not found.")
         sys.exit(1)
@@ -98,7 +98,7 @@ def scan_directory(dir_path):
     report_findings = []
 
     for root, dirs, files in os.walk(dir_path):
-        # Filter out ignored directories in-place
+        # Filter out ignored directories in-place (including the reports folder)
         dirs[:] = [d for d in dirs if d not in IGNORED_DIRS]
 
         for file in files:
@@ -142,7 +142,7 @@ def scan_directory(dir_path):
                     high_critical_found = True
                     print(f"  🚨 SECURITY ALERT: {finding.severity.upper()} severity vulnerability detected in {full_path}!")
 
-    # Generate Markdown Report File
+    # Generate Markdown Report File in dedicated folder
     generate_markdown_report(report_findings, scanned_count, high_critical_found)
 
     print(f"\n✅ Completed directory scan. Total files scanned: {scanned_count}\n")
@@ -155,7 +155,11 @@ def scan_directory(dir_path):
         sys.exit(0)
 
 def generate_markdown_report(findings, scanned_count, failed):
-    """Writes a structured markdown summary report for PR comments, sanitizing inner backticks."""
+    """Writes a structured markdown summary report into a dedicated security-reports directory."""
+    reports_dir = "security-reports"
+    os.makedirs(reports_dir, exist_ok=True)
+    report_path = os.path.join(reports_dir, "security_report.md")
+    
     status_emoji = "❌ **FAILED** (High/Critical Vulnerabilities Detected)" if failed else "🟢 **PASSED** (No High/Critical Vulnerabilities)"
     
     report_lines = [
@@ -172,8 +176,6 @@ def generate_markdown_report(findings, scanned_count, failed):
     else:
         for item in findings:
             f = item["finding"]
-            
-            # Sanitize any markdown code blocks returned inside the LLM model text
             clean_fix = f.secure_code_fix.replace("```python", "").replace("```", "").strip()
             
             report_lines.extend([
@@ -190,13 +192,12 @@ def generate_markdown_report(findings, scanned_count, failed):
             ])
 
     report_content = "\n".join(report_lines)
-    with open("security_report.md", "w", encoding="utf-8") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         f.write(report_content)
-    print("📝 Generated 'security_report.md' successfully.")
+    print(f"📝 Generated report successfully at: {report_path}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI-powered code security vulnerability scanner.")
-    parser.add_argument("--file", help="Path to a single code file to scan.")
     parser.add_argument("--dir", help="Path to a directory/repo to recursively scan.")
 
     args = parser.parse_args()

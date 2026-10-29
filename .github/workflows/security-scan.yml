@@ -38,8 +38,9 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            if (fs.existsSync('security_report.md')) {
-              const report = fs.readFileSync('security_report.md', 'utf8');
+            const reportPath = 'security-reports/security_report.md';
+            if (fs.existsSync(reportPath)) {
+              const report = fs.readFileSync(reportPath, 'utf8');
               await github.rest.issues.createComment({
                 issue_number: context.payload.pull_request.number,
                 owner: context.repo.owner,
