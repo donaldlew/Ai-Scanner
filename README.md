@@ -6,8 +6,13 @@ This tool acts as a proof-of-concept automated security scanning engine. Designe
 
 By leveraging structured JSON schemas, the output is designed to be easily integrated into automated pipelines (like CI/CD gates) to block vulnerable code before it reaches production.
 
-Model Used
-Model Identifier: gemini-3.5-flash
+Model Availability
+A model pipeline is used to ensure if a free model is unavailable, back up options are called. In the event that all 3 models isted are unable, an OpenRouter route plug is used to call the best available model.
+Models:
+    nvidia/nemotron-3.5-lightning:free,
+    thinkingmachines/inkling-small:free,
+    google/gemma-4-31b-it:free,
+    openrouter/free 
 
 Prerequisites
 1. Python 3.10+ installed on your machine
@@ -21,4 +26,4 @@ pip install openai python-dotenv pydantic
 3. Configure your API Key:
 Create a file named .env in the same directory as your script and add your OpenRouter API key:
 4. Execute the script from your terminal: 
-python scanner.py
+python scanner.py --dir [Insert Directory]

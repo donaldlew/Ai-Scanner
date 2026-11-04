@@ -3,6 +3,7 @@ import sys
 import argparse
 import json
 import re
+from typing import TypedDict, List, Literal
 from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -16,13 +17,27 @@ client = OpenAI(
     api_key=os.getenv("OPENROUTER_API_KEY"),
 )
 
-# Pydantic schema for structured security findings
+# Pydantic schema for individual security findings with strict Literal severity
 class SecurityFinding(BaseModel):
     vulnerability_name: str = Field(description="Name of the vulnerability, e.g., SQL Injection")
     cwe_id: str = Field(description="Associated CWE identifier, e.g., CWE-89")
-    severity: str = Field(description="Severity level: Low, Medium, High, or Critical")
+    
+    # Strictly constrain severity to exact supported values
+    severity: Literal["Low", "Medium", "High", "Critical"] = Field(
+        description="Severity level must be exactly one of: Low, Medium, High, or Critical"
+    )
+    
     explanation: str = Field(description="Brief explanation of why this code is vulnerable")
     secure_code_fix: str = Field(description="The corrected, secure version of the code snippet")
+
+# Container model for zero, one, or multiple findings from the LLM
+class ScanResults(BaseModel):
+    findings: list[SecurityFinding] = Field(description="List of security vulnerabilities found in the code. Empty list if code is secure.")
+
+# TypedDict for explicit type safety on local report items
+class ReportFinding(TypedDict):
+    file: str
+    finding: SecurityFinding
 
 # Fallback model pipeline (tries active free models in order of reliability)
 PRIMARY_MODELS = [
@@ -35,7 +50,7 @@ PRIMARY_MODELS = [
 # Directories to ignore during recursive scans
 IGNORED_DIRS = {".git", ".github", "venv", ".venv", "__pycache__", "node_modules", "build", "dist", "security-reports"}
 
-# Binary, media, and archive extensions to skip (blacklist approach)
+# Binary, media, archive, and documentation extensions to skip
 IGNORED_EXTENSIONS = {
     # Images & Media
     ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg", ".mp4", ".mp3",
@@ -43,18 +58,18 @@ IGNORED_EXTENSIONS = {
     ".exe", ".dll", ".so", ".bin", ".o", ".pyc",
     # Archives & Compressed
     ".zip", ".tar", ".gz", ".rar", ".7z",
-    # Documents & Fonts
-    ".pdf", ".docx", ".xlsx", ".ttf", ".woff", ".woff2"
+    # Documents, Fonts & Markdown Documentation
+    ".pdf", ".docx", ".xlsx", ".ttf", ".woff", ".woff2", ".md"
 }
 
 # Specific administrative or environment files to ignore locally
-IGNORED_FILES = {".env", ".gitignore", "readme.md", "license", "package-lock.json"}
+IGNORED_FILES = {".env", ".gitignore", "license", "package-lock.json"}
 
 # Maximum file size limit (500 KB)
 MAX_FILE_SIZE = 500 * 1024
 
 def analyze_code_content(file_path, code_content):
-    """Sends code content to OpenRouter with fallback logic and returns the structured finding."""
+    """Sends code content to OpenRouter with fallback logic. Returns a list of findings, or None if all models fail."""
     for model_name in PRIMARY_MODELS:
         try:
             print(f"  Attempting scan with model: {model_name}...")
@@ -64,27 +79,27 @@ def analyze_code_content(file_path, code_content):
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are an expert Application Security Engineer. Analyze code strictly for vulnerabilities and output structured data."
+                        "content": "You are an expert Application Security Engineer. Analyze code strictly for vulnerabilities and return structured data. If no vulnerabilities exist, return an empty findings list."
                     },
                     {
                         "role": "user", 
                         "content": f"Analyze this code for security vulnerabilities:\n\n{code_content}"
                     }
                 ],
-                response_format=SecurityFinding,
+                response_format=ScanResults,
             )
             
             print(f"  ✅ Model used: {response.model}")
-            return response.choices[0].message.parsed
+            return response.choices[0].message.parsed.findings
 
         except Exception as e:
             print(f"  ⚠️ Model '{model_name}' failed schema parsing: {e}. Trying next model...")
 
     print(f"  ❌ All models failed for file: {file_path}")
-    return None
+    return None  # Return None explicitly to indicate an analysis failure
 
 def scan_directory(dir_path):
-    """Recursively scans all text-based source files and generates a markdown report in a dedicated folder."""
+    """Recursively scans all valid source files and generates a markdown report in a dedicated folder."""
     if not os.path.exists(dir_path):
         print(f"Error: Directory '{dir_path}' not found.")
         sys.exit(1)
@@ -95,7 +110,10 @@ def scan_directory(dir_path):
 
     scanned_count = 0
     high_critical_found = False
-    report_findings = []
+    scan_failed_count = 0  # Track files that completely failed analysis
+    
+    # Type-annotated list utilizing our ReportFinding TypedDict
+    all_report_findings: list[ReportFinding] = []
 
     for root, dirs, files in os.walk(dir_path):
         # Filter out ignored directories in-place (including the reports folder)
@@ -126,41 +144,56 @@ def scan_directory(dir_path):
             scanned_count += 1
             print(f"\n[{scanned_count}] Scanning: {full_path}")
 
-            finding = analyze_code_content(full_path, code_content)
-            if finding:
-                print("\n--- Security Analysis Output ---")
-                print(finding.model_dump_json(indent=2))
-                
-                # Track findings for report
-                report_findings.append({
-                    "file": full_path,
-                    "finding": finding
-                })
+            findings_list = analyze_code_content(full_path, code_content)
+            
+            # Check if all models failed (returns None instead of a list)
+            if findings_list is None:
+                scan_failed_count += 1
+                print(f"  🚨 ERROR: Could not analyze {full_path} due to model failures.")
+            elif findings_list:
+                print(f"  ⚠️ Found {len(findings_list)} vulnerability(ies) in {full_path}")
+                for finding in findings_list:
+                    print(f"    - [{finding.severity}] {finding.vulnerability_name} ({finding.cwe_id})")
+                    
+                    # Append strictly matching the ReportFinding TypedDict structure
+                    all_report_findings.append({
+                        "file": full_path,
+                        "finding": finding
+                    })
 
-                severity_lower = finding.severity.lower()
-                if "high" in severity_lower or "critical" in severity_lower:
-                    high_critical_found = True
-                    print(f"  🚨 SECURITY ALERT: {finding.severity.upper()} severity vulnerability detected in {full_path}!")
+                    # Clean, exact membership check
+                    if finding.severity in {"High", "Critical"}:
+                        high_critical_found = True
+            else:
+                print(f"  🟢 Clean: No vulnerabilities detected.")
 
-    # Generate Markdown Report File in dedicated folder
-    generate_markdown_report(report_findings, scanned_count, high_critical_found)
+    # Generate Markdown Report File in dedicated folder (skipped entirely if empty)
+    generate_markdown_report(all_report_findings, scanned_count, high_critical_found or scan_failed_count > 0)
 
     print(f"\n✅ Completed directory scan. Total files scanned: {scanned_count}\n")
 
-    if high_critical_found:
-        print("❌ SECURITY GATE FAILED: High or Critical vulnerabilities detected. Blocking build.")
+    # Fail the gate if either High/Critical findings exist OR any file failed analysis
+    if high_critical_found or scan_failed_count > 0:
+        print("❌ SECURITY GATE FAILED: High/Critical vulnerabilities detected or files failed analysis. Blocking build.")
         sys.exit(1)
     else:
-        print("🟢 SECURITY GATE PASSED: No High or Critical vulnerabilities found.")
+        print("🟢 SECURITY GATE PASSED: All files scanned successfully with no High/Critical vulnerabilities.")
         sys.exit(0)
 
-def generate_markdown_report(findings, scanned_count, failed):
-    """Writes a structured markdown summary report into a dedicated security-reports directory."""
+def generate_markdown_report(findings: list[ReportFinding], scanned_count: int, failed: bool):
+    """Writes a structured markdown summary report into a dedicated security-reports directory if findings exist."""
     reports_dir = "security-reports"
     os.makedirs(reports_dir, exist_ok=True)
     report_path = os.path.join(reports_dir, "security_report.md")
     
-    status_emoji = "❌ **FAILED** (High/Critical Vulnerabilities Detected)" if failed else "🟢 **PASSED** (No High/Critical Vulnerabilities)"
+    # If no findings exist, ensure clean state and skip report creation (silent success)
+    if not findings:
+        if os.path.exists(report_path):
+            os.remove(report_path)
+        print("🟢 No vulnerabilities found globally. Skipping report generation.")
+        return
+
+    status_emoji = "❌ **FAILED** (High/Critical Vulnerabilities Detected or Scan Errors)"
     
     report_lines = [
         "# 🛡️ AI Security Scan Report",
@@ -171,25 +204,22 @@ def generate_markdown_report(findings, scanned_count, failed):
         "### 🔍 Detailed Findings"
     ]
 
-    if not findings:
-        report_lines.append("\n*No security vulnerabilities or risks detected across scanned files!*")
-    else:
-        for item in findings:
-            f = item["finding"]
-            clean_fix = f.secure_code_fix.replace("```python", "").replace("```", "").strip()
-            
-            report_lines.extend([
-                f"",
-                f"#### 📁 File: `{item['file']}`",
-                f"- **Vulnerability:** {f.vulnerability_name} (`{f.cwe_id}`)",
-                f"- **Severity:** **{f.severity}**",
-                f"- **Explanation:** {f.explanation}",
-                f"- **Suggested Fix:**",
-                f"```python",
-                f"{clean_fix}",
-                f"```",
-                f""
-            ])
+    for item in findings:
+        f = item["finding"]
+        clean_fix = f.secure_code_fix.replace("```python", "").replace("```", "").strip()
+        
+        report_lines.extend([
+            f"",
+            f"#### 📁 File: `{item['file']}`",
+            f"- **Vulnerability:** {f.vulnerability_name} (`{f.cwe_id}`)",
+            f"- **Severity:** **{f.severity}**",
+            f"- **Explanation:** {f.explanation}",
+            f"- **Suggested Fix:**",
+            f"```python",
+            f"{clean_fix}",
+            f"```",
+            f""
+        ])
 
     report_content = "\n".join(report_lines)
     with open(report_path, "w", encoding="utf-8") as f:
