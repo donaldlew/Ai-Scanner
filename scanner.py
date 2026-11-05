@@ -3,6 +3,7 @@ import sys
 import argparse
 import json
 import re
+import subprocess
 from typing import TypedDict, List, Literal
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -63,7 +64,7 @@ IGNORED_EXTENSIONS = {
 }
 
 # Specific administrative or environment files to ignore locally
-IGNORED_FILES = {".env", ".gitignore", "license", "package-lock.json"}
+IGNORED_FILES = {".env", ".gitignore", "license", "package-lock.json", "scanner.py"}
 
 # Maximum file size limit (500 KB)
 MAX_FILE_SIZE = 500 * 1024
@@ -180,13 +181,90 @@ def scan_directory(dir_path):
         print("🟢 SECURITY GATE PASSED: All files scanned successfully with no High/Critical vulnerabilities.")
         sys.exit(0)
 
+def scan_git_diff():
+    """Scans only git-modified or untracked local files incrementally."""
+    print(f"\n==========================================")
+    print(f" Starting Incremental Git Diff Scan")
+    print(f"==========================================\n")
+
+    cmd = ["git", "ls-files", "-m", "--others", "--exclude-standard"]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        files = result.stdout.splitlines()
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error running git command: {e}")
+        sys.exit(1)
+
+    if not files:
+        print("🟢 No modified files found to scan.")
+        sys.exit(0)
+
+    scanned_count = 0
+    high_critical_found = False
+    scan_failed_count = 0
+    all_report_findings: list[ReportFinding] = []
+
+    for file_path in files:
+        if not os.path.exists(file_path):
+            continue
+
+        file_name = os.path.basename(file_path)
+        if file_name.lower() in IGNORED_FILES:
+            continue
+
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext in IGNORED_EXTENSIONS:
+            continue
+
+        if os.path.getsize(file_path) > MAX_FILE_SIZE:
+            print(f"\n  ⏩ Skipping (exceeds 500 KB limit): {file_path}")
+            continue
+        
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                code_content = f.read()
+        except (UnicodeDecodeError, Exception):
+            continue
+
+        scanned_count += 1
+        print(f"\n[{scanned_count}] Scanning modified file: {file_path}")
+
+        findings_list = analyze_code_content(file_path, code_content)
+        
+        if findings_list is None:
+            scan_failed_count += 1
+            print(f"  🚨 ERROR: Could not analyze {file_path} due to model failures.")
+        elif findings_list:
+            print(f"  ⚠️ Found {len(findings_list)} vulnerability(ies) in {file_path}")
+            for finding in findings_list:
+                print(f"    - [{finding.severity}] {finding.vulnerability_name} ({finding.cwe_id})")
+                all_report_findings.append({
+                    "file": file_path,
+                    "finding": finding
+                })
+                if finding.severity in {"High", "Critical"}:
+                    high_critical_found = True
+        else:
+            print(f"  🟢 Clean: No vulnerabilities detected.")
+
+    generate_markdown_report(all_report_findings, scanned_count, high_critical_found or scan_failed_count > 0)
+
+    print(f"\n✅ Completed incremental scan. Total files checked: {scanned_count}\n")
+
+    if high_critical_found or scan_failed_count > 0:
+        print("❌ SECURITY GATE FAILED: High/Critical vulnerabilities found in modified files.")
+        sys.exit(1)
+    else:
+        print("🟢 SECURITY GATE PASSED: Modified files are clean.")
+        sys.exit(0)
+
 def generate_markdown_report(findings: list[ReportFinding], scanned_count: int, failed: bool):
     """Writes a structured markdown summary report into a dedicated security-reports directory if findings exist."""
     reports_dir = "security-reports"
     os.makedirs(reports_dir, exist_ok=True)
     report_path = os.path.join(reports_dir, "security_report.md")
     
-    # If no findings exist, ensure clean state and skip report creation (silent success)
     if not findings:
         if os.path.exists(report_path):
             os.remove(report_path)
@@ -229,11 +307,14 @@ def generate_markdown_report(findings: list[ReportFinding], scanned_count: int, 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI-powered code security vulnerability scanner.")
     parser.add_argument("--dir", help="Path to a directory/repo to recursively scan.")
+    parser.add_argument("--diff", action="store_true", help="Incrementally scan only git-modified files.")
 
     args = parser.parse_args()
 
     if args.dir:
         scan_directory(args.dir)
+    elif args.diff:
+        scan_git_diff()
     else:
-        print("Error: Please specify --dir <path>")
+        print("Error: Please specify --dir <path> or --diff")
         sys.exit(1)

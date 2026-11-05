@@ -1,12 +1,12 @@
 # AI Security Gate (Project One) 🛡️
 
-An automated, lightweight Static Application Security Testing (SAST) tool powered by OpenRouter and Pydantic. It recursively scans your repository for security vulnerabilities and enforces a blocking gate on High and Critical findings inside GitHub Actions.
+An automated, lightweight Static Application Security Testing (SAST) tool powered by OpenRouter and Pydantic. It can incrementally and recursively scans both your local directories your Github repositories for security vulnerabilities, enforcing a blocking gate on High and Critical findings when committing to GitHub.
 
 ---
 
 ## Prerequisites
 
-* A **GitHub** repository.
+* Python 3.10+ installed on your machine.
 * An **OpenRouter API Key** (you can grab a free-tier key from [openrouter.ai](https://openrouter.ai/)).
 
 ---
@@ -16,8 +16,11 @@ An automated, lightweight Static Application Security Testing (SAST) tool powere
 ### Step 1: Add the Scanner Script
 Place the `scanner.py` script at the root of your project directory. 
 
-### Step 2: Create the GitHub Actions Workflow
-Create a workflow file in your repository at `.github/workflows/security-scan.yml` with the following configuration:
+### Step 2: Install Local Dependencies
+Install the required packages via command line: pip install openai python-dotenv pydantic
+
+### Step 3: Create the GitHub Actions Workflow
+Create a workflow file in your repository at using GitHub Actions. Use the following configuration for your yml file:
 
 ```yaml
 name: AI Security Gate
@@ -54,7 +57,7 @@ jobs:
 
 ---
 
-### Step 3: Configure Your Repository Secret
+### Step 4: Configure Your Repository Secret
 For the GitHub Action to run, it needs access to your OpenRouter API key:
 1. Go to your GitHub repository and click Settings.
 2. In the left sidebar, expand Secrets and variables, then click Actions.
@@ -65,7 +68,8 @@ For the GitHub Action to run, it needs access to your OpenRouter API key:
 Local Usage
 If you want to run the security scan locally on your machine before pushing code:
 1. Create a .env file at your project root and add your OpenRouter key.
-2. Run the scanner against a single file or an entire directory using the scanner.py file in commmand line.
+2. Scan local modified/untracked files incrementally: python scanner.py --diff
+3. Scan an entire directory recursively: python scanner.py --dir .
 
 Features & Architecture
 Multi-Model Fallback Pipeline: Automatically switches between free-tier models on OpenRouter if a rate limit or error is hit.
