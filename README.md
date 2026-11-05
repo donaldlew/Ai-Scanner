@@ -18,7 +18,7 @@ graph TD
     Dev --> GitHub[GitHub Actions<br/>CI/CD]
 
     subgraph "Local Workflow"
-        Local --> LocalCLI["Scan Directory]
+        Local --> LocalCLI["Scan Directory"]
         LocalCLI --> RunLocalLLM{"Run Model<br/>Pipeline"}
         RunLocalLLM --> LocalGate{"High/Critical<br/>Findings?"}
         LocalGate --> LocalFail["❌ Fail"]
