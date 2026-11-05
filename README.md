@@ -11,6 +11,7 @@ Complex Data Flows: Files are evaluated individually for speed and efficiency, m
 ## System Architecture & Data Flow
 
 Here is how the system orchestrates security checks across local and CI/CD environments:
+
 graph TD
     Dev[Developer Workstation] -->|Local Directory Scan| LocalScan[Local CLI Scan: --dir .]
     Dev -->|Git Push / PR Creation| CI[GitHub Actions Workflow]
