@@ -20,6 +20,7 @@ graph TD
     subgraph "Local Workflow"
         Local --> LocalCLI["Scan Directory]
         LocalCLI --> RunLocalLLM{"Run Model<br/>Pipeline"}
+        RunLocalLLM --> LocalGate{"High/Critical<br/>Findings?"}
         LocalGate --> LocalFail["❌ Fail"]
         LocalGate --> LocalPass["🟢 Pass"]
         LocalFail --> LocalReport["Generate<br/>Report"]
@@ -32,6 +33,7 @@ graph TD
         GHAGate --> Fail["❌ Fail"]
         GHAGate --> Pass["🟢 Pass"]
         Fail --> Comment["Create PR<br/>Comment"]
+    end
 
 ```
 
