@@ -14,8 +14,8 @@ Here is how the system orchestrates security checks across local and CI/CD envir
 
 ```mermaid
 graph TD
-    Dev[Developer Workstation] --> Local[Local CLI Execution]
-    Dev --> GitHub[GitHub Actions CI/CD]
+    Dev[Developer Workstation] --> Local[CLI<br/>Execution]
+    Dev --> GitHub[GitHub Actions<br/>CI/CD]
 
     subgraph "Local Workflow"
         Local --> LocalCLI
