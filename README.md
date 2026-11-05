@@ -36,7 +36,6 @@ graph TD
         GHAGate --> Pass["🟢 Pass"]
         Fail --> Comment["Create PR<br/>Comment"]
     end
-
 ```
 
 Features
