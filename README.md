@@ -12,6 +12,7 @@ Complex Data Flows: Files are evaluated individually for speed and efficiency, m
 
 Here is how the system orchestrates security checks across local and CI/CD environments:
 
+```mermaid
 graph TD
     Dev[Developer Workstation] -->|Local Directory Scan| LocalScan[Local CLI Scan: --dir .]
     Dev -->|Git Push / PR Creation| CI[GitHub Actions Workflow]
@@ -31,6 +32,7 @@ graph TD
     style Dev fill:#f9f,stroke:#333,stroke-width:2px
     style LLM fill:#bbf,stroke:#333,stroke-width:2px
     style FailGate fill:#ff9999,stroke:#333,stroke-width:2px
+```
 
 Features
 1. Dual-Layer Scanning: Run quick checks locally on your machine before committing, or let it run automatically inside your GitHub workflow.
