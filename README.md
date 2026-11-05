@@ -10,23 +10,23 @@ Complex Data Flows: Files are evaluated individually for speed and efficiency, m
 
 System Architecture & Data Flow
 Here is how the system orchestrates security checks across local and CI/CD environments:
-'''mermaid
+```mermaid
 graph TD
-    Dev[Developer Workstation] -->|Local Code / Git Changes| LocalScan[Local CLI Scan: --diff]
+    Dev[Developer Workstation] -->|Local Directory Scan| LocalScan[Local CLI Scan: --dir .]
     Dev -->|Git Push / PR Creation| CI[GitHub Actions Workflow]
-    
+
     subgraph "AI Security Gateway Engine"
         CI --> Filter[Smart File & Size Filtering]
         Filter --> LLM{Multi-Model Fallback Pipeline}
-        LLM -->|Primary: Nemotron / Inkling / Gemma| Parse[Pydantic Structured JSON Parsing]
-        LLM -->|Fallback Triggered| Parse
+        LLM -->|Primary / Fallback Model| Parse[Pydantic Structured JSON Parsing]
     end
 
     Parse -->|High / Critical Findings| FailGate[❌ Fail Build & Block PR]
     Parse -->|Clean / Low Risk| PassGate[🟢 Pass Gate]
 
-    FailGate --> Comment[Automated PR Comment & Markdown Report]
-    
+    FailGate --> Report[Generated Markdown Report]
+    PassGate --> Report
+
     style Dev fill:#f9f,stroke:#333,stroke-width:2px
     style LLM fill:#bbf,stroke:#333,stroke-width:2px
     style FailGate fill:#ff9999,stroke:#333,stroke-width:2px

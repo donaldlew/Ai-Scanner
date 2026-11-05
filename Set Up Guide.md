@@ -1,6 +1,6 @@
 # AI Security Gate (Project One) 🛡️
 
-An automated, lightweight Static Application Security Testing (SAST) tool powered by OpenRouter and Pydantic. It can incrementally and recursively scans both your local directories your Github repositories for security vulnerabilities, enforcing a blocking gate on High and Critical findings when committing to GitHub.
+An automated, lightweight Static Application Security Testing (SAST) tool powered by OpenRouter and Pydantic. It can recursively scan both your local directories your Github repositories for security vulnerabilities, enforcing a blocking gate on High and Critical findings when committing to GitHub.
 
 ---
 
@@ -68,8 +68,7 @@ For the GitHub Action to run, it needs access to your OpenRouter API key:
 Local Usage
 If you want to run the security scan locally on your machine before pushing code:
 1. Create a .env file at your project root and add your OpenRouter key.
-2. Scan local modified/untracked files incrementally: python scanner.py --diff
-3. Scan an entire directory recursively: python scanner.py --dir .
+2. Scan an entire directory recursively: python scanner.py --dir .
 
 Features & Architecture
 Multi-Model Fallback Pipeline: Automatically switches between free-tier models on OpenRouter if a rate limit or error is hit.
