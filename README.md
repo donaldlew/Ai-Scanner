@@ -14,22 +14,24 @@ Here is how the system orchestrates security checks across local and CI/CD envir
 
 ```mermaid
 graph TD
-    Dev[Developer Workstation] -->|Local Directory Scan| LocalScan[Local CLI Scan: --dir .]
-    Dev -->|Git Push / PR Creation| CI[GitHub Actions Workflow]
+    Dev[Developer Workstation] --> Local[Local Scan Workflow]
+    Dev --> GitHub[GitHub CI/CD Workflow]
 
-    subgraph "AI Security Gateway Engine"
-        CI --> Filter[Smart File & Size Filtering]
-        Filter --> LLM{Multi-Model Fallback Pipeline}
-        LLM -->|Primary / Fallback Model| Parse[Pydantic Structured JSON Parsing]
+    subgraph "Local Execution"
+        Local --> LocalCLI[Run: python scanner.py --dir .]
+        LocalCLI --> LocalFilter[Smart File & Size Filtering]
+        LocalFilter --> LocalLLM{Multi-Model Fallback Pipeline}
+        LocalLLM --> LocalReport[Generate Markdown Report]
     end
 
-    LocalScan --> Filter
-
-    Parse -->|High / Critical Findings| FailGate[❌ Fail Build & Block PR]
-    Parse -->|Clean / Low Risk| PassGate[🟢 Pass Gate]
-
-    FailGate --> Report[Generated Markdown Report]
-    PassGate --> Report
+    subgraph "GitHub Actions CI/CD"
+        GitHub --> GHA[Trigger on Push / PR]
+        GHA --> GHAFilter[Smart File & Size Filtering]
+        GHAFilter --> GHALLM{Multi-Model Fallback Pipeline}
+        GHALLM --> GHAGate{High / Critical Findings?}
+        GHAGate -->|Yes| Fail[❌ Fail Build & Block PR]
+        GHAGate -->|No| Pass[🟢 Pass Gate & Generate Report]
+    end
 
 ```
 
