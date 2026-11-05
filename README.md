@@ -8,8 +8,10 @@ Real-time analysis of your application source code logic, detecting common secur
 Dependencies: It does not scan third-party package libraries (requirements.txt, package.json), which are best handled by dedicated tools like Dependabot.
 Complex Data Flows: Files are evaluated individually for speed and efficiency, meaning multi-file data tracking is intentionally left out.
 
-System Architecture & Data Flow
+## System Architecture & Data Flow
+
 Here is how the system orchestrates security checks across local and CI/CD environments:
+
 ```mermaid
 graph TD
     Dev[Developer Workstation] -->|Local Directory Scan| LocalScan[Local CLI Scan: --dir .]
