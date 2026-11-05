@@ -27,9 +27,10 @@ client = OpenAI(
 # ---------------------------------------------------------------------------
 MODEL_PIPELINE = [
     "nvidia/nemotron-3.5-lightning:free",
-    "inkling/inkling-v1:free",
-    "google/gemma-2-9b-it:free",
-    "openrouter/auto",
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "recursive/flint-v1.0:free",
+    "openrouter/free",
 ]
 
 # ---------------------------------------------------------------------------
@@ -124,8 +125,8 @@ def analyze_code_content(file_path: str, code_content: str) -> Optional[List[Vul
 # ---------------------------------------------------------------------------
 # Markdown Report Generation
 # ---------------------------------------------------------------------------
-def generate_markdown_report(all_findings: list, total_scanned: int, gate_failed: bool):
-    """Generates an executive Markdown report summarizing scan findings."""
+def generate_markdown_report(all_findings: list, total_scanned: int, scan_failed_count: int, gate_failed: bool):
+    """Generates an executive Markdown report summarizing scan findings or infrastructure failures."""
     os.makedirs("security-reports", exist_ok=True)
     report_path = os.path.join("security-reports", "security_report.md")
 
@@ -137,6 +138,7 @@ def generate_markdown_report(all_findings: list, total_scanned: int, gate_failed
         f"**Status:** {status_badge}",
         f"**Total Files Scanned:** {total_scanned}",
         f"**Total Findings:** {len(all_findings)}",
+        f"**Scan Errors / Model Failures:** {scan_failed_count}",
         "",
         "---",
         "",
@@ -144,7 +146,9 @@ def generate_markdown_report(all_findings: list, total_scanned: int, gate_failed
         ""
     ]
 
-    if not all_findings:
+    if scan_failed_count > 0:
+        md.append(f"🚨 **SCANNER ERROR: {scan_failed_count} file(s) could not be analyzed due to model failures, rate limits, or schema errors. Review CI/CD logs.**")
+    elif not all_findings:
         md.append("🟢 **No vulnerabilities were detected across all scanned files.**")
     else:
         md.append("| File | Severity | Vulnerability | CWE |")
@@ -240,7 +244,7 @@ def scan_directory(target_dir: str):
             else:
                 print(f"  🟢 Clean: No vulnerabilities detected.")
 
-    generate_markdown_report(all_report_findings, scanned_count, high_critical_found or scan_failed_count > 0)
+    generate_markdown_report(all_report_findings, scanned_count, scan_failed_count, high_critical_found or scan_failed_count > 0)
 
     print(f"\n✅ Completed directory scan. Total files scanned: {scanned_count}\n")
 

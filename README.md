@@ -17,23 +17,23 @@ Here is how the system orchestrates security checks across local and CI/CD envir
 ```mermaid
 graph TD
     Dev[Developer<br/>Workstation] --> Local[CLI<br/>Execution]
-    Dev --> GitHub["New GitHub<br/>Commit"]
+    Dev --> GitHub["New Code<br/>Committed"]
 
     subgraph "Local Workflow"
-        Local --> LocalCLI["Scan Directory"]
-        LocalCLI --> RunLocalLLM{"Run Model<br/>Pipeline"}
+        Local --> LocalCLI["Scans Directory"]
+        LocalCLI --> RunLocalLLM{"LLM Model Runs"}
         RunLocalLLM --> LocalGate{"High/Critical<br/>Findings?"}
-        LocalGate --> LocalFail["❌ Fail"]
-        LocalGate --> LocalPass["🟢 Pass"]
+        LocalGate -- Yes --> LocalFail["❌ Fail"]
+        LocalGate -- No --> LocalPass["🟢 Pass"]
         LocalFail --> LocalReport["Generate<br/>Report"]
     end
 
     subgraph "GitHub CI/CD Workflow"
-        GitHub --> GHA["Git Actions<br/>Scans"]
-        GHA --> RunGitLLM{"Run Model<br/>Pipeline"}
+        GitHub --> GHA["Git Actions<br/>Runs"]
+        GHA --> RunGitLLM{"LLM Model<br/>Runs"}
         RunGitLLM --> GHAGate{"High/Critical<br/>Findings?"}
-        GHAGate --> Fail["❌ Fail"]
-        GHAGate --> Pass["🟢 Pass"]
+        GHAGate -- Yes --> Fail["❌ Fail"]
+        GHAGate -- No --> Pass["🟢 Pass"]
         Fail --> Comment["Create PR<br/>Comment"]
     end
 ```
