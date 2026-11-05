@@ -1,7 +1,9 @@
 Executive Summary
+
 This tool is a lightweight, automated security assistant that scans your code for security risks before it ever reaches production. It runs both locally on your computer and automatically inside your GitHub workflow, acting as an instant second pair of eyes. If it spots a serious vulnerability, it blocks the code from being merged and automatically leaves a helpful comment on your pull request explaining the fix, keeping your pipeline secure without slowing down development speed.
 
 Scope (What it covers & limitations)
+
 1. What's In Scope: 
 Real-time analysis of your application source code logic, detecting common security risks, and enforcing automated quality/security gates in CI/CD pipelines.
 2. What's Out of Scope (By Design):
@@ -15,7 +17,7 @@ Here is how the system orchestrates security checks across local and CI/CD envir
 ```mermaid
 graph TD
     Dev[Developer<br/>Workstation] --> Local[CLI<br/>Execution]
-    Dev --> GitHub[GitHub Actions<br/>CI/CD]
+    Dev --> GitHub["New GitHub<br/>Commit"]
 
     subgraph "Local Workflow"
         Local --> LocalCLI["Scan Directory"]
@@ -27,7 +29,7 @@ graph TD
     end
 
     subgraph "GitHub CI/CD Workflow"
-        GitHub --> GHA["Commits<br/>New Code"]
+        GitHub --> GHA["Git Actions<br/>Scans"]
         GHA --> RunGitLLM{"Run Model<br/>Pipeline"}
         RunGitLLM --> GHAGate{"High/Critical<br/>Findings?"}
         GHAGate --> Fail["❌ Fail"]
