@@ -30,6 +30,7 @@ graph TD
         RunGitLLM --> GHAGate{"High/Critical<br/>Findings?"}
         GHAGate --> Fail["❌ Fail Build<br/>& Block PR"]
         GHAGate --> Pass["🟢 Pass Gate<br/>& Complete"]
+        Fail --> Comment["Create PR<br/>Comment"]
     end
 
 ```
