@@ -20,14 +20,14 @@ graph TD
     subgraph "Local Workflow"
         Local --> LocalCLI
         LocalCLI --> LocalFilter
-        LocalFilter --> RunLLM{"Run Model Pipeline"}
-        RunLLM --> LocalReport["Generates Local<br/>Markdown Report"]
+        LocalFilter --> RunLocalLLM{"Run Model Pipeline"}
+        RunLocalLLM --> LocalReport["Generates Local<br/>Markdown Report"]
     end
 
     subgraph "GitHub CI/CD Workflow"
         GitHub --> GHA["Trigger on Push<br/>or PR"]
-        GHA --> RunLLM{"Run Model Pipeline"}
-        RunLLM --> GHAGate{"High / Critical<br/>Findings?"}
+        GHA --> RunGitLLM{"Run Model Pipeline"}
+        RunGitLLM --> GHAGate{"High / Critical<br/>Findings?"}
         GHAGate --> Fail["❌ Fail Build<br/>& Block PR"]
         GHAGate --> Pass["🟢 Pass Gate<br/>& Complete"]
     end
