@@ -23,15 +23,14 @@ graph TD
         LLM -->|Primary / Fallback Model| Parse[Pydantic Structured JSON Parsing]
     end
 
+    LocalScan --> Filter
+
     Parse -->|High / Critical Findings| FailGate[❌ Fail Build & Block PR]
     Parse -->|Clean / Low Risk| PassGate[🟢 Pass Gate]
 
     FailGate --> Report[Generated Markdown Report]
     PassGate --> Report
 
-    style Dev fill:#f9f,stroke:#333,stroke-width:2px
-    style LLM fill:#bbf,stroke:#333,stroke-width:2px
-    style FailGate fill:#ff9999,stroke:#333,stroke-width:2px
 ```
 
 Features
