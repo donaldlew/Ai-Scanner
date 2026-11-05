@@ -14,23 +14,23 @@ Here is how the system orchestrates security checks across local and CI/CD envir
 
 ```mermaid
 graph TD
-    Dev[Developer Workstation] --> Local[Local Scan Workflow]
-    Dev --> GitHub[GitHub CI/CD Workflow]
+    Dev[Developer Workstation] --> Local[Local CLI Execution]
+    Dev --> GitHub[GitHub Actions CI/CD]
 
-    subgraph "Local Execution"
-        Local --> LocalCLI[Run: python scanner.py --dir .]
-        LocalCLI --> LocalFilter[Smart File & Size Filtering]
-        LocalFilter --> LocalLLM{Multi-Model Fallback Pipeline}
-        LocalLLM --> LocalReport[Generate Markdown Report]
+    subgraph "Local Workflow"
+        Local --> LocalCLI["Run Scan:<br/>python scanner.py --dir ."]
+        LocalCLI --> LocalFilter["Smart File & Size<br/>Filtering"]
+        LocalFilter --> LocalLLM{"Multi-Model<br/>Fallback Pipeline"}
+        LocalLLM --> LocalReport["Generates Local<br/>Markdown Report"]
     end
 
-    subgraph "GitHub Actions CI/CD"
-        GitHub --> GHA[Trigger on Push / PR]
-        GHA --> GHAFilter[Smart File & Size Filtering]
-        GHAFilter --> GHALLM{Multi-Model Fallback Pipeline}
-        GHALLM --> GHAGate{High / Critical Findings?}
-        GHAGate -->|Yes| Fail[❌ Fail Build & Block PR]
-        GHAGate -->|No| Pass[🟢 Pass Gate & Generate Report]
+    subgraph "GitHub CI/CD Workflow"
+        GitHub --> GHA["Trigger on Push<br/>or PR"]
+        GHA --> GHAFilter["Smart File & Size<br/>Filtering"]
+        GHAFilter --> GHALLM{"Multi-Model<br/>Fallback Pipeline"}
+        GHALLM --> GHAGate{"High / Critical<br/>Findings?"}
+        GHAGate -->|Yes| Fail["❌ Fail Build<br/>& Block PR"]
+        GHAGate -->|No| Pass["🟢 Pass Gate<br/>& Complete"]
     end
 
 ```
