@@ -18,17 +18,16 @@ graph TD
     Dev --> GitHub[GitHub Actions CI/CD]
 
     subgraph "Local Workflow"
-        Local --> LocalCLI["Run Scan:<br/>python scanner.py --dir ."]
-        LocalCLI --> LocalFilter["Smart File & Size<br/>Filtering"]
-        LocalFilter --> LocalLLM{"Multi-Model<br/>Fallback Pipeline"}
-        LocalLLM --> LocalReport["Generates Local<br/>Markdown Report"]
+        Local --> LocalCLI
+        LocalCLI --> LocalFilter
+        LocalFilter --> RunLLM{"Run Model Pipeline"}
+        RunLLM --> LocalReport["Generates Local<br/>Markdown Report"]
     end
 
     subgraph "GitHub CI/CD Workflow"
         GitHub --> GHA["Trigger on Push<br/>or PR"]
-        GHA --> GHAFilter["Smart File & Size<br/>Filtering"]
-        GHAFilter --> GHALLM{"Multi-Model<br/>Fallback Pipeline"}
-        GHALLM --> GHAGate{"High / Critical<br/>Findings?"}
+        GHA --> RunLLM{"Run Model Pipeline"}
+        RunLLM --> GHAGate{"High / Critical<br/>Findings?"}
         GHAGate --> Fail["❌ Fail Build<br/>& Block PR"]
         GHAGate --> Pass["🟢 Pass Gate<br/>& Complete"]
     end
