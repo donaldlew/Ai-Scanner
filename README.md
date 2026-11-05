@@ -29,8 +29,8 @@ graph TD
         GHA --> GHAFilter["Smart File & Size<br/>Filtering"]
         GHAFilter --> GHALLM{"Multi-Model<br/>Fallback Pipeline"}
         GHALLM --> GHAGate{"High / Critical<br/>Findings?"}
-        GHAGate -->|Yes| Fail["❌ Fail Build<br/>& Block PR"]
-        GHAGate -->|No| Pass["🟢 Pass Gate<br/>& Complete"]
+        GHAGate --> Fail["❌ Fail Build<br/>& Block PR"]
+        GHAGate --> Pass["🟢 Pass Gate<br/>& Complete"]
     end
 
 ```
