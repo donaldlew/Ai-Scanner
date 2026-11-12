@@ -146,10 +146,16 @@ def generate_markdown_report(all_findings: list, total_scanned: int, scan_failed
         ""
     ]
 
+    # Render scan errors independently if any occurred
     if scan_failed_count > 0:
-        md.append(f"🚨 **SCANNER ERROR: {scan_failed_count} file(s) could not be analyzed due to model failures, rate limits, or schema errors. Review CI/CD logs.**")
-    elif not all_findings:
-        md.append("🟢 **No vulnerabilities were detected across all scanned files.**")
+        md.extend([
+            f"🚨 **SCANNER ERROR: {scan_failed_count} file(s) could not be analyzed due to model failures, rate limits, or schema errors. Review CI/CD logs.**",
+            ""
+        ])
+
+    # Render findings or clean status independently of errors
+    if not all_findings:
+        md.append("🟢 **No vulnerabilities were detected across all successfully scanned files.**")
     else:
         md.append("| File | Severity | Vulnerability | CWE |")
         md.append("| :--- | :--- | :--- | :--- |")
